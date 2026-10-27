@@ -1,0 +1,33 @@
+name: Check JSON Update
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # ตั้งให้รันทุกๆ 15 นาที
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run check script
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python check_update.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "bot@github.com"
+          git add last_content.txt
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update last state" && git push)
