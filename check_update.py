@@ -1,6 +1,6 @@
-import datetime
 import json
 import os
+import re
 import requests
 
 # URL ของไฟล์ JSON และ Discord Webhook
@@ -27,42 +27,41 @@ def main():
     try:
       data = response.json()
 
-      # ดึงค่า Timestamp (start และ end) จาก JSON
-      start_ts = data.get("start")
-      end_ts = data.get("end")
+      # ดึงข้อมูลจากภาษาอังกฤษ (คีย์ "10")
+      notice_data = data.get("10", {})
+      msg_text = notice_data.get("msg", "")
 
-      # แปลง Timestamp เป็นวันที่และเวลาแบบสากล (UTC / อ่านง่าย)
-      start_str = (
-          datetime.datetime.fromtimestamp(
-              start_ts, datetime.timezone.utc
-          ).strftime("%Y-%m-%d %H:%M:%S UTC")
-          if start_ts
-          else "N/A"
+      # แยกส่วน Title และ Content ออกจากกัน
+      parts = msg_text.split("####content///")
+      title = (
+          parts[0].replace("####mainTitle///", "").replace("\n", " ").strip()
       )
-      end_str = (
-          datetime.datetime.fromtimestamp(
-              end_ts, datetime.timezone.utc
-          ).strftime("%Y-%m-%d %H:%M:%S UTC")
-          if end_ts
-          else "N/A"
-      )
+      body = parts[1].replace("\\n", "\n").strip() if len(parts) > 1 else ""
 
-      # จัดรูปแบบข้อความให้แสดงแค่วันที่และเวลา
+      # ค้นหาเฉพาะประโยคที่มีคำว่า maintenance หรือเวลา เพื่อเอามาสรุปสั้นๆ (ถ้ามี)
+      # หรือจะดึงบรรทัดแรกๆ ของเนื้อหามาแสดงก็ได้
+      maintenance_info = "New maintenance schedule updated."
+      for line in body.split("\n"):
+        if "maintenance" in line.lower() or "gm" in line.lower():
+          maintenance_info = line.strip()
+          break
+
+      # จัดรูปแบบข้อความที่จะส่งเข้า Discord
       notification_text = (
-          f"@everyone 🚨 **New Notice Update**\n\n"
-          f"📅 **Start:** {start_str}\n"
-          f"📅 **End:** {end_str}"
+          f"@everyone 🚨 **Ragnarok M Notice Update**\n\n"
+          f"📌 **Title:** {title}\n"
+          f"⏰ **Details:** {maintenance_info}\n\n"
+          f"🔗 {JSON_URL}"
       )
 
       message = {"content": notification_text}
       requests.post(WEBHOOK_URL, json=message)
 
     except Exception as e:
-      # กรณีเกิดข้อผิดพลาด ให้แจ้งเตือนแบบสำรอง
+      # กรณีเกิดข้อผิดพลาด ให้ส่งลิงก์แจ้งเตือนทั่วไป
       fallback_message = {
           "content": (
-              f"@everyone 🚨 **New Notice Update detected (Timestamp parse"
-              f" error)**\n🔗 {JSON_URL}"
+              f"@everyone 🚨 **New Notice Update detected**\n🔗 {JSON_URL}"
           )
       }
       requests.post(WEBHOOK_URL, json=fallback_message)
