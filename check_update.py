@@ -24,7 +24,7 @@ def main():
   if current_content != last_content:
     message = {
         "content": (
-            "🚨 **แจ้งเตือน!** พบการอัพเดทข้อมูลใหม่ในไฟล์ JSON:\n"
+            "@everyone 🚨 **New server maintenance updates:\n"
             f"🔗 {JSON_URL}"
         )
     }
